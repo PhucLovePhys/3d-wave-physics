@@ -6,58 +6,101 @@
     <style>
         body { margin: 0; background: #050505; color: white; overflow: hidden; font-family: sans-serif; }
         canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
     </style>
-</head>
+    <!-- Thư viện lil-gui -->
     <script src="https://unpkg.com/lil-gui@0.17.0/dist/lil-gui.umd.js"></script>
-<script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.140.0/build/three.module.js';
-    import { EffectComposer } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/EffectComposer.js';
-    import { RenderPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/RenderPass.js';
-    import { UnrealBloomPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/UnrealBloomPass.js'
+</head>
 <body>
-    <div id="ui"><h1>Song Co Hoc 3D</h1><p>Mo phong giao thoa song</p></div>
-    <script type="module">
-        import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
+    <div id="ui">
+        <h1>Sóng Cơ Học 3D</h1>
+        <p>Mô phỏng giao thoa sóng (Neon Bloom Lab)</p>
+    </div>
 
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.140.0/build/three.module.js';
+        import { EffectComposer } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+
+        // 1. Khởi tạo scene, camera, renderer
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Định nghĩa params cho GUI
+        const params = {
+            freq: 1.0,
+            amp: 1.0,
+            speed: 1.0,
+            lambda: 10
+        };
+
+        // 3. Cài đặt GUI
         const gui = new lil.GUI();
-        gui.add(params, 'freq', 0.1, 5);
-        gui.add(params, 'amp', 0, 3);
+        gui.add(params, 'freq', 0.1, 5).name('Tần số (f)');
+        gui.add(params, 'amp', 0, 3).name('Biên độ (A)');
+        gui.add(params, 'speed', 0.1, 3).name('Tốc độ');
+
+        // 4. Thiết lập Post-processing (Bloom Effect)
         const composer = new EffectComposer(renderer);
         composer.addPass(new RenderPass(scene, camera));
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
         composer.addPass(bloomPass);
-        document.body.appendChild(renderer.domElement);
 
-        const geometry = new THREE.PlaneGeometry(20, 20, 50, 50);
-        const material = new THREE.MeshPhongMaterial({ color: 0x00d4ff, wireframe: true });
+        // 5. Tạo lưới sóng (Plane)
+        const geometry = new THREE.PlaneGeometry(20, 20, 60, 60);
+        const material = new THREE.MeshPhongMaterial({ color: 0x00d4ff, wireframe: true, emissive: 0x004466 });
         const plane = new THREE.Mesh(geometry, material);
         plane.rotation.x = -Math.PI / 2;
         scene.add(plane);
 
-        camera.position.set(0, 5, 10);
+        camera.position.set(0, 8, 12);
         camera.lookAt(0, 0, 0);
-        
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(0, 5, 5);
+
+        const light = new THREE.DirectionalLight(0xffffff, 1.5);
+        light.position.set(0, 10, 5);
         scene.add(light);
 
+        // 6. Vòng lặp animate kết hợp tính toán sóng & giao thoa
         function animate(time) {
             requestAnimationFrame(animate);
+            const t = time * 0.001 * params.speed;
+
             const positions = plane.geometry.attributes.position.array;
+            
+            // Hàm tính giao thoa sóng từ 2 nguồn (S1, S2)
+            const s1 = { x: -5, z: 0 };
+            const s2 = { x: 5, z: 0 };
+
             for (let i = 0; i < positions.length; i += 3) {
                 const x = positions[i];
-                const y = positions[i + 1];
-                positions[i + 2] = Math.sin(x * 0.5 + time * 0.005) * Math.cos(y * 0.5 + time * 0.005);
+                const y = positions[i + 1]; // Trên mặt phẳng xoay, y thực chất là trục z trong không gian local
+
+                const dist1 = Math.sqrt((x - s1.x)**2 + (y - s1.z)**2);
+                const dist2 = Math.sqrt((x - s2.x)**2 + (y - s2.z)**2);
+
+                // Phương trình sóng tổng hợp u = u1 + u2
+                const u1 = params.amp * Math.sin(2 * Math.PI * (params.freq * t - dist1 / params.lambda));
+                const u2 = params.amp * Math.sin(2 * Math.PI * (params.freq * t - dist2 / params.lambda));
+
+                positions[i + 2] = u1 + u2; // Cập nhật chiều cao z
             }
             plane.geometry.attributes.position.needsUpdate = true;
+
             composer.render();
         }
         animate(0);
+
+        // Xử lý resize màn hình
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
