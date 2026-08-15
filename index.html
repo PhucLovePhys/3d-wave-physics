@@ -5,11 +5,11 @@
     <title>3D Wave Physics Lab</title>
     <style>
         body { margin: 0; background: #050505; color: white; overflow: hidden; font-family: sans-serif; }
-        canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
+        canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: auto; z-index: 10; }
     </style>
-    <!-- Thư viện lil-gui -->
-    <script src="https://unpkg.com/lil-gui@0.17.0/dist/lil-gui.umd.js"></script>
+    <!-- Dùng lil-gui chuẩn qua cdnjs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lil-gui/0.18.2/lil-gui.umd.min.js"></script>
 </head>
 <body>
     <div id="ui">
@@ -17,17 +17,19 @@
         <p>Mô phỏng giao thoa sóng (Neon Bloom Lab)</p>
     </div>
 
+    <!-- Sử dụng esm.sh để load Three.js và Postprocessing cực kỳ mượt mà trên GitHub Pages -->
     <script type="module">
-        import * as THREE from 'https://unpkg.com/three@0.140.0/build/three.module.js';
-        import { EffectComposer } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/EffectComposer.js';
-        import { RenderPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/RenderPass.js';
-        import { UnrealBloomPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+        import * as THREE from 'https://esm.sh/three@0.140.0';
+        import { EffectComposer } from 'https://esm.sh/three@0.140.0/examples/jsm/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'https://esm.sh/three@0.140.0/examples/jsm/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'https://esm.sh/three@0.140.0/examples/jsm/postprocessing/UnrealBloomPass.js';
 
         // 1. Khởi tạo scene, camera, renderer
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
         // 2. Định nghĩa params cho GUI
@@ -64,35 +66,33 @@
         light.position.set(0, 10, 5);
         scene.add(light);
 
-        // 6. Vòng lặp animate kết hợp tính toán sóng & giao thoa
-        function animate(time) {
+        // 6. Vòng lặp animate
+        let clock = new THREE.Clock();
+        function animate() {
             requestAnimationFrame(animate);
-            const t = time * 0.001 * params.speed;
+            const t = clock.getElapsedTime() * params.speed;
 
             const positions = plane.geometry.attributes.position.array;
-            
-            // Hàm tính giao thoa sóng từ 2 nguồn (S1, S2)
             const s1 = { x: -5, z: 0 };
             const s2 = { x: 5, z: 0 };
 
             for (let i = 0; i < positions.length; i += 3) {
                 const x = positions[i];
-                const y = positions[i + 1]; // Trên mặt phẳng xoay, y thực chất là trục z trong không gian local
+                const y = positions[i + 1]; 
 
                 const dist1 = Math.sqrt((x - s1.x)**2 + (y - s1.z)**2);
                 const dist2 = Math.sqrt((x - s2.x)**2 + (y - s2.z)**2);
 
-                // Phương trình sóng tổng hợp u = u1 + u2
                 const u1 = params.amp * Math.sin(2 * Math.PI * (params.freq * t - dist1 / params.lambda));
                 const u2 = params.amp * Math.sin(2 * Math.PI * (params.freq * t - dist2 / params.lambda));
 
-                positions[i + 2] = u1 + u2; // Cập nhật chiều cao z
+                positions[i + 2] = u1 + u2; 
             }
             plane.geometry.attributes.position.needsUpdate = true;
 
             composer.render();
         }
-        animate(0);
+        animate();
 
         // Xử lý resize màn hình
         window.addEventListener('resize', () => {
