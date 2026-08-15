@@ -9,6 +9,12 @@
         #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
     </style>
 </head>
+    <script src="https://unpkg.com/lil-gui@0.17.0/dist/lil-gui.umd.js"></script>
+<script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.140.0/build/three.module.js';
+    import { EffectComposer } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://unpkg.com/three@0.140.0/examples/jsm/postprocessing/UnrealBloomPass.js'
 <body>
     <div id="ui"><h1>Song Co Hoc 3D</h1><p>Mo phong giao thoa song</p></div>
     <script type="module">
@@ -18,6 +24,13 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        const gui = new lil.GUI();
+        gui.add(params, 'freq', 0.1, 5);
+        gui.add(params, 'amp', 0, 3);
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        composer.addPass(bloomPass);
         document.body.appendChild(renderer.domElement);
 
         const geometry = new THREE.PlaneGeometry(20, 20, 50, 50);
@@ -42,7 +55,7 @@
                 positions[i + 2] = Math.sin(x * 0.5 + time * 0.005) * Math.cos(y * 0.5 + time * 0.005);
             }
             plane.geometry.attributes.position.needsUpdate = true;
-            renderer.render(scene, camera);
+            composer.render();
         }
         animate(0);
     </script>
