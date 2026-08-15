@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Wave Physics Lab</title>
+    <style>
+        body { margin: 0; background: #050505; color: white; overflow: hidden; font-family: sans-serif; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui"><h1>Song Co Hoc 3D</h1><p>Mo phong giao thoa song</p></div>
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const geometry = new THREE.PlaneGeometry(20, 20, 50, 50);
+        const material = new THREE.MeshPhongMaterial({ color: 0x00d4ff, wireframe: true });
+        const plane = new THREE.Mesh(geometry, material);
+        plane.rotation.x = -Math.PI / 2;
+        scene.add(plane);
+
+        camera.position.set(0, 5, 10);
+        camera.lookAt(0, 0, 0);
+        
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(0, 5, 5);
+        scene.add(light);
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            const positions = plane.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                const x = positions[i];
+                const y = positions[i + 1];
+                positions[i + 2] = Math.sin(x * 0.5 + time * 0.005) * Math.cos(y * 0.5 + time * 0.005);
+            }
+            plane.geometry.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+        animate(0);
+    </script>
+</body>
+</html>
